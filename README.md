@@ -2,6 +2,14 @@
 
 **Lightweight focus dimmer for Windows**
 
+<p align="center">
+  <img src="assets/screenshots/readme.png" alt="FocalFade" width="800"/>
+</p>
+
+<p align="center">
+  <a href="README.zh-CN.md">中文</a>
+</p>
+
 FocalFade helps you focus by gently fading everything except what you are working on.
 
 ## Features
@@ -27,7 +35,9 @@ FocalFade helps you focus by gently fading everything except what you are workin
 
 ## Screenshots
 
-*Coming soon - screenshots showing FocalFade in action with different configurations*
+<p align="center">
+  <img src="assets/screenshots/readme.png" alt="FocalFade Screenshot" width="700"/>
+</p>
 
 ## Install
 
