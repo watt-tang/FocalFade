@@ -71,6 +71,7 @@ public sealed class AppBootstrapper : IDisposable
             // Initialize overlay manager
             _overlayManager.RecreateOverlays();
             _overlayManager.UpdateAppearance(CreateAppearance(settings));
+            _overlayManager.SetBlur(settings.BlurEnabled, settings.BlurIntensity);
 
             // Wire up active window tracker
             _activeWindowTracker.ForegroundChanged += OnForegroundChanged;
@@ -232,6 +233,7 @@ public sealed class AppBootstrapper : IDisposable
     {
         _appRuleManager.SetRules(settings.AppRules);
         _overlayManager.UpdateAppearance(CreateAppearance(settings));
+        _overlayManager.SetBlur(settings.BlurEnabled, settings.BlurIntensity);
         _trayThemeService.ApplyTheme(settings.TrayIconTheme);
         UpdateTrayMenu();
 

@@ -18,7 +18,7 @@ public sealed class OverlayManager : IOverlayManager
     {
         _logger = logger;
         _monitorManager = monitorManager;
-        _renderer = new OverlayRenderer(loggerFactory.CreateLogger<OverlayRenderer>(), monitorManager);
+        _renderer = new OverlayRenderer(loggerFactory.CreateLogger<OverlayRenderer>(), loggerFactory, monitorManager);
     }
 
     public bool IsVisible => _isVisible;
@@ -48,6 +48,11 @@ public sealed class OverlayManager : IOverlayManager
     {
         _appearance = appearance;
         _renderer.UpdateAppearance(appearance);
+    }
+
+    public void SetBlur(bool enabled, double intensity)
+    {
+        _renderer.SetBlur(enabled, intensity);
     }
 
     public void RecreateOverlays()

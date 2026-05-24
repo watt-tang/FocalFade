@@ -10,10 +10,12 @@ FocalFade helps you focus by gently fading everything except what you are workin
 - Robust active-window detection that filters out shell surfaces, desktop icons, USB device icons, and transient windows
 - Multiple focus modes: Active Window, Active App, Current Monitor, All Monitors
 - Multi-monitor support with per-monitor DPI awareness and correct negative-coordinate handling
-- Customizable opacity, dim color with presets, corner radius, and focus margin
+- Customizable opacity, dim color with RGB sliders and presets, corner radius, and focus margin
 - Per-app opacity rules
+- Full hotkey customization UI (click-to-bind)
 - Presentation Mode for screen sharing and recording
 - Global hotkeys for quick control
+- Experimental blur effect behind dimmed areas
 - System tray utility - minimal footprint, no main window
 - App exclusion rules (e.g., don't dim fullscreen games, OBS, video players)
 - Start with Windows option
@@ -122,6 +124,4 @@ MIT License - see [LICENSE](LICENSE)
 
 ## Roadmap
 
-- [ ] Full hotkey customization UI (click-to-bind in settings)
-- [ ] Blur effect improvements and wider system support
-- [ ] Custom color picker with visual preview
+- [ ] Blur effect support for more Windows versions and configurations

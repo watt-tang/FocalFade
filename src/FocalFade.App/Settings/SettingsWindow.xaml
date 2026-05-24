@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FocalFade.Settings"
         Title="FocalFade Settings"
-        Width="540" Height="680"
+        Width="560" Height="720"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize"
         ShowInTaskbar="True"
@@ -90,16 +90,47 @@
                             </TextBlock>
                         </StackPanel>
 
-                        <!-- Color picker -->
+                        <!-- Enhanced Color Picker -->
                         <TextBlock Text="Dim Color" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                            <TextBox Text="{Binding DimColor, UpdateSourceTrigger=LostFocus}" Width="90" VerticalAlignment="Center"/>
-                            <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+
+                        <!-- Preview swatch + hex input -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Border Width="40" Height="40" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                                 <Border.Background>
-                                    <SolidColorBrush Color="{Binding DimColor, Converter={x:Static vm:SettingsWindow.HexToColorConverter}}"/>
+                                    <SolidColorBrush Color="{Binding DimColorPreview}"/>
                                 </Border.Background>
                             </Border>
+                            <TextBox Text="{Binding DimColor, UpdateSourceTrigger=LostFocus}" Width="100"
+                                     VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas"/>
                         </StackPanel>
+
+                        <!-- RGB sliders -->
+                        <StackPanel Margin="0,0,0,4">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="R" Width="20" Foreground="#C00" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Slider Value="{Binding ColorR}" Minimum="0" Maximum="255" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Width="240" Margin="4,0,0,0"/>
+                                <TextBlock Text="{Binding ColorR}" Width="30" Margin="8,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondary}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="G" Width="20" Foreground="#0A0" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Slider Value="{Binding ColorG}" Minimum="0" Maximum="255" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Width="240" Margin="4,0,0,0"/>
+                                <TextBlock Text="{Binding ColorG}" Width="30" Margin="8,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondary}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="B" Width="20" Foreground="#00C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Slider Value="{Binding ColorB}" Minimum="0" Maximum="255" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Width="240" Margin="4,0,0,0"/>
+                                <TextBlock Text="{Binding ColorB}" Width="30" Margin="8,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondary}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Presets -->
+                        <TextBlock Text="Presets" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,4"/>
                         <ItemsControl ItemsSource="{Binding ColorPresets}" Margin="0,0,0,10">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -124,6 +155,26 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Blur Effect -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Blur Effect (Experimental)" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="Applies a blur behind dimmed areas. Focused window stays clear."
+                                   Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <CheckBox Content="Enable blur behind dimmed areas" IsChecked="{Binding BlurEnabled}" Margin="0,0,0,8"/>
+                        <StackPanel IsEnabled="{Binding BlurEnabled}">
+                            <TextBlock Text="Blur Intensity" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Value="{Binding BlurIntensity}" Minimum="0.1" Maximum="1.0"
+                                        TickFrequency="0.05" IsSnapToTickEnabled="True" Width="280"/>
+                                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}">
+                                    <TextBlock.Text><MultiBinding StringFormat="{}{0:P0}"><Binding Path="BlurIntensity"/></MultiBinding></TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Focus Behavior -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
@@ -140,7 +191,7 @@
                     <StackPanel>
                         <TextBlock Text="App Rules" Style="{StaticResource SectionHeader}"/>
                         <TextBlock Text="Excluded apps and per-app opacity overrides" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
-                        <ListBox ItemsSource="{Binding AppRules}" MaxHeight="180" Margin="0,0,0,8" BorderBrush="{DynamicResource BorderBrush}">
+                        <ListBox x:Name="AppRulesListBox" ItemsSource="{Binding AppRules}" MaxHeight="180" Margin="0,0,0,8" BorderBrush="{DynamicResource BorderBrush}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
@@ -166,17 +217,29 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Hotkeys -->
+                <!-- Hotkeys (click-to-bind) -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="Hotkeys" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="Default hotkeys (editing coming in a future release)" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
-                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+F" FontWeight="SemiBold"/><Run Text="  Toggle enabled"/></TextBlock></StackPanel>
-                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+Up" FontWeight="SemiBold"/><Run Text="  Increase opacity"/></TextBlock></StackPanel>
-                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+Down" FontWeight="SemiBold"/><Run Text="  Decrease opacity"/></TextBlock></StackPanel>
-                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+P" FontWeight="SemiBold"/><Run Text="  Presentation mode"/></TextBlock></StackPanel>
-                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+Space" FontWeight="SemiBold"/><Run Text="  Peek (10 sec)"/></TextBlock></StackPanel>
-                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+S" FontWeight="SemiBold"/><Run Text="  Open settings"/></TextBlock></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Hotkeys" Style="{StaticResource SectionHeader}" Margin="0,0,8,0"/>
+                            <Button Content="Reset All" Command="{Binding ResetAllHotkeysCommand}" Padding="8,2" FontSize="11"/>
+                        </StackPanel>
+                        <TextBlock Text="Click a hotkey field, then press your desired key combination."
+                                   Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding HotkeyBindings}" Margin="0,0,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <TextBlock Text="{Binding DisplayName}" Width="160" VerticalAlignment="Center" FontSize="12"/>
+                                        <vm:HotkeyCaptureControl Width="200" VerticalAlignment="Center"
+                                            Binding="{Binding}"
+                                            AllBindings="{Binding DataContext.HotkeyBindings, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                        <TextBlock Text="{Binding DefaultGesture}" Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 

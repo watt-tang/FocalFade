@@ -45,7 +45,9 @@ Test each item and check it off when passing.
 - [ ] Adjust opacity slider - overlay updates live
 - [ ] Adjust focus margin and corner radius
 - [ ] Change dim color using hex input
-- [ ] Click a color preset - color updates
+- [ ] Adjust R/G/B sliders - hex and preview update
+- [ ] Click a color preset - color and sliders update
+- [ ] Verify live preview swatch shows the selected color
 - [ ] Toggle animations on/off
 - [ ] Settings saved after restart
 
@@ -63,6 +65,17 @@ Test each item and check it off when passing.
 - [ ] Ctrl+Alt+Space - Peek (10 seconds)
 - [ ] Ctrl+Alt+S - Open settings
 
+### 8b. Hotkey Customization
+- [ ] Open Settings > Hotkeys
+- [ ] Click on a hotkey field (e.g., "Toggle enabled")
+- [ ] Press a new key combination (e.g., Ctrl+Shift+T)
+- [ ] Verify the new hotkey is displayed
+- [ ] Verify it works when pressed outside settings
+- [ ] Try assigning a duplicate - verify conflict warning
+- [ ] Try a bare key with no modifier - verify rejection
+- [ ] Click "Reset All" - verify all hotkeys return to defaults
+- [ ] Restart app - verify custom hotkeys persist
+
 ### 9. Tray Icon Theme
 - [ ] Set tray icon theme to Auto
 - [ ] Toggle Windows light/dark app theme in Settings > Personalization
@@ -71,10 +84,14 @@ Test each item and check it off when passing.
 - [ ] Set theme to Dark - icon stays dark regardless
 
 ### 10. Blur (Experimental)
-- [ ] Enable blur in Settings
+- [ ] Enable blur in Settings > Blur Effect
+- [ ] Adjust blur intensity slider
 - [ ] Verify focused window remains clear (not blurred)
-- [ ] Verify dimmed areas show blur effect
+- [ ] Verify dimmed areas show blur effect behind them
+- [ ] Move focus between windows - blur panels update
 - [ ] Disable blur - returns to normal dimming
+- [ ] Verify blur works on multiple monitors (if available)
+- [ ] Verify app does not crash if blur is unsupported on your system
 
 ### 11. Presentation Mode
 - [ ] Ctrl+Alt+P toggles Presentation Mode

@@ -1,0 +1,19 @@
+<UserControl x:Class="FocalFade.Settings.HotkeyCaptureControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="200">
+    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+            Background="White" Padding="8,4" Cursor="Hand"
+            MouseLeftButtonDown="OnBorderClick">
+        <StackPanel>
+            <TextBlock x:Name="GestureText" Text="{Binding GestureString, Mode=OneWay}"
+                       FontSize="13" VerticalAlignment="Center"/>
+            <TextBlock x:Name="PromptText" Text="Click to bind, then press keys..."
+                       FontSize="11" Foreground="{DynamicResource AccentBrush}"
+                       Visibility="Collapsed"/>
+            <TextBlock x:Name="ValidationText" Text="{Binding ValidationMessage, Mode=OneWay}"
+                       FontSize="10" Foreground="Red" Margin="0,2,0,0"
+                       Visibility="Collapsed"/>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -1,3 +1,4 @@
+using FocalFade.Core;
 using FocalFade.Models;
 using FocalFade.Services;
 using Microsoft.Extensions.Logging;
@@ -9,16 +10,20 @@ public sealed class OverlayRenderer : IDisposable
 {
     private readonly ILogger<OverlayRenderer> _logger;
     private readonly IMonitorManager _monitorManager;
+    private readonly BlurManager _blurManager;
     private readonly Dictionary<IntPtr, FocusOverlayWindow> _overlayWindows = new();
     private OverlayAppearance _appearance = new();
     private OverlayMode _currentMode = OverlayMode.AllMonitors;
     private bool _disposed;
     private bool _isHiddenForDrag;
+    private bool _blurEnabled;
+    private double _blurIntensity = 0.6;
 
-    public OverlayRenderer(ILogger<OverlayRenderer> logger, IMonitorManager monitorManager)
+    public OverlayRenderer(ILogger<OverlayRenderer> logger, ILoggerFactory loggerFactory, IMonitorManager monitorManager)
     {
         _logger = logger;
         _monitorManager = monitorManager;
+        _blurManager = new BlurManager(loggerFactory.CreateLogger<BlurManager>());
     }
 
     public void Initialize()
@@ -38,9 +43,7 @@ public sealed class OverlayRenderer : IDisposable
                 overlay.PositionOnMonitor(monitor);
                 overlay.HideImmediate();
                 _overlayWindows[monitor.HMonitor] = overlay;
-                _logger.LogDebug("Created overlay for monitor {Device}: Physical=({X},{Y},{W},{H})",
-                    monitor.DeviceName, monitor.PhysicalBounds.X, monitor.PhysicalBounds.Y,
-                    monitor.PhysicalBounds.Width, monitor.PhysicalBounds.Height);
+                _logger.LogDebug("Created overlay for monitor {Device}", monitor.DeviceName);
             }
             catch (Exception ex)
             {
@@ -62,12 +65,14 @@ public sealed class OverlayRenderer : IDisposable
         int fadeMs = _appearance.AnimationsEnabled ? _appearance.FadeDurationMs : 0;
         foreach (var overlay in _overlayWindows.Values)
             overlay.HideWithAnimation(fadeMs);
+        _blurManager.HideAll();
     }
 
     public void HideImmediate()
     {
         foreach (var overlay in _overlayWindows.Values)
             overlay.HideImmediate();
+        _blurManager.HideAll();
     }
 
     public void ShowImmediate()
@@ -81,12 +86,21 @@ public sealed class OverlayRenderer : IDisposable
     {
         _isHiddenForDrag = hidden;
         if (hidden)
+        {
             HideImmediate();
+            _blurManager.HideAll();
+        }
     }
 
-    /// <summary>
-    /// Update focus rects. focusRects are in DIP virtual screen coordinates.
-    /// </summary>
+    public void SetBlur(bool enabled, double intensity)
+    {
+        _blurEnabled = enabled;
+        _blurIntensity = intensity;
+        _blurManager.SetEnabled(enabled);
+        if (!enabled)
+            _blurManager.HideAll();
+    }
+
     public void UpdateFocusRects(List<Rect> focusRectsDip, OverlayMode mode)
     {
         _currentMode = mode;
@@ -96,7 +110,6 @@ public sealed class OverlayRenderer : IDisposable
             var monitor = _monitorManager.Monitors.FirstOrDefault(m => m.HMonitor == hMonitor);
             if (monitor == null) continue;
 
-            // Clip focus rects to this monitor's DIP bounds
             List<Rect> rectsForMonitor;
             switch (mode)
             {
@@ -106,7 +119,6 @@ public sealed class OverlayRenderer : IDisposable
                     else
                         rectsForMonitor = [];
                     break;
-
                 case OverlayMode.AllMonitors:
                 default:
                     rectsForMonitor = ClipRectsToMonitor(monitor.DipBounds, focusRectsDip);
@@ -114,6 +126,13 @@ public sealed class OverlayRenderer : IDisposable
             }
 
             overlay.UpdateOverlay(rectsForMonitor, _appearance, monitor);
+
+            // Update blur panels (convert DIP rects to physical for blur panels)
+            if (_blurEnabled)
+            {
+                var physicalRects = rectsForMonitor.Select(r => DpiCoordinator.DipToPhysical(r, monitor.DpiScaleX, monitor.DpiScaleY)).ToList();
+                _blurManager.UpdateForMonitor(hMonitor, monitor.PhysicalBounds, physicalRects, _blurIntensity);
+            }
         }
     }
 
@@ -150,10 +169,9 @@ public sealed class OverlayRenderer : IDisposable
     private void DestroyOverlays()
     {
         foreach (var overlay in _overlayWindows.Values)
-        {
             try { overlay.Close(); } catch { }
-        }
         _overlayWindows.Clear();
+        _blurManager.HideAll();
     }
 
     public void Dispose()
@@ -161,5 +179,6 @@ public sealed class OverlayRenderer : IDisposable
         if (_disposed) return;
         _disposed = true;
         DestroyOverlays();
+        _blurManager.Dispose();
     }
 }

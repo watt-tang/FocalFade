@@ -10,5 +10,6 @@ public interface IOverlayManager : IDisposable
     void Hide();
     void UpdateFocusRects(List<Rect> focusRects, OverlayAppearance appearance);
     void UpdateAppearance(OverlayAppearance appearance);
+    void SetBlur(bool enabled, double intensity);
     void RecreateOverlays();
 }

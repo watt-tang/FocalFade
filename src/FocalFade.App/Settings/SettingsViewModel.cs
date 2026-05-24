@@ -28,6 +28,17 @@ public partial class SettingsViewModel : ObservableObject
         AppRules = new ObservableCollection<AppRule>(_settingsStore.Settings.AppRules);
         ColorPresets = new ObservableCollection<ColorPreset>(
             ColorService.Presets.Select(p => new ColorPreset(p.Name, p.Hex)));
+
+        // Build hotkey bindings from settings
+        HotkeyBindings = new ObservableCollection<HotkeyBindingViewModel>(
+            HotkeyAction.AllActions.Select(a =>
+            {
+                var gestureStr = _settingsStore.Settings.Hotkeys.GetValueOrDefault(a.Key, a.DefaultGesture);
+                return new HotkeyBindingViewModel(a.Key, a.DisplayName, gestureStr, a.DefaultGesture);
+            }));
+
+        // Sync DimColor RGB components
+        SyncRgbFromHex(DimColor);
     }
 
     // General
@@ -50,6 +61,12 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _blurEnabled;
     [ObservableProperty] private double _blurIntensity = 0.6;
 
+    // RGB sliders for color picker
+    [ObservableProperty] private int _colorR;
+    [ObservableProperty] private int _colorG;
+    [ObservableProperty] private int _colorB;
+    private bool _syncingColor;
+
     // Focus behavior
     [ObservableProperty] private OverlayMode _overlayMode;
     [ObservableProperty] private FullscreenBehavior _fullscreenBehavior;
@@ -68,6 +85,19 @@ public partial class SettingsViewModel : ObservableObject
     // Color presets
     public ObservableCollection<ColorPreset> ColorPresets { get; }
 
+    // Hotkey bindings
+    public ObservableCollection<HotkeyBindingViewModel> HotkeyBindings { get; }
+
+    // Preview color for the color picker
+    public Color DimColorPreview
+    {
+        get
+        {
+            if (ColorService.TryParseHex(DimColor, out var c)) return c;
+            return Colors.Black;
+        }
+    }
+
     public OverlayMode[] OverlayModes => Enum.GetValues<OverlayMode>();
     public FullscreenBehavior[] FullscreenBehaviors => Enum.GetValues<FullscreenBehavior>();
     public TrayIconTheme[] TrayIconThemes => Enum.GetValues<TrayIconTheme>();
@@ -82,11 +112,44 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    // RGB change handlers - update hex from RGB sliders
+    partial void OnColorRChanged(int value) => OnRgbChanged();
+    partial void OnColorGChanged(int value) => OnRgbChanged();
+    partial void OnColorBChanged(int value) => OnRgbChanged();
+
+    private void OnRgbChanged()
+    {
+        if (_syncingColor) return;
+        _syncingColor = true;
+        DimColor = $"#{ColorR:X2}{ColorG:X2}{ColorB:X2}";
+        OnPropertyChanged(nameof(DimColorPreview));
+        _syncingColor = false;
+        SaveSettings();
+    }
+
+    private void SyncRgbFromHex(string hex)
+    {
+        if (ColorService.TryParseHex(hex, out var c))
+        {
+            _syncingColor = true;
+            ColorR = c.R;
+            ColorG = c.G;
+            ColorB = c.B;
+            OnPropertyChanged(nameof(DimColorPreview));
+            _syncingColor = false;
+        }
+    }
+
     // Change callbacks
     partial void OnEnabledChanged(bool value) => SaveSettings();
     partial void OnStartEnabledChanged(bool value) => SaveSettings();
     partial void OnOpacityChanged(double value) => SaveSettings();
-    partial void OnDimColorChanged(string value) => SaveSettings();
+    partial void OnDimColorChanged(string value)
+    {
+        SyncRgbFromHex(value);
+        OnPropertyChanged(nameof(DimColorPreview));
+        SaveSettings();
+    }
     partial void OnFocusMarginChanged(double value) => SaveSettings();
     partial void OnCornerRadiusChanged(double value) => SaveSettings();
     partial void OnAnimationsEnabledChanged(bool value) => SaveSettings();
@@ -126,7 +189,19 @@ public partial class SettingsViewModel : ObservableObject
         AppRules.Clear();
         foreach (var rule in _settingsStore.Settings.AppRules)
             AppRules.Add(rule);
+        HotkeyBindings.Clear();
+        foreach (var a in HotkeyAction.AllActions)
+            HotkeyBindings.Add(new HotkeyBindingViewModel(a.Key, a.DisplayName, a.DefaultGesture, a.DefaultGesture));
         _suppressSave = false;
+        SaveSettings();
+    }
+
+    [RelayCommand]
+    private void ResetAllHotkeys()
+    {
+        foreach (var binding in HotkeyBindings)
+            binding.ResetToDefault();
+        SaveSettings();
     }
 
     [RelayCommand]
@@ -160,7 +235,6 @@ public partial class SettingsViewModel : ObservableObject
     private void SetRuleOpacity(AppRule? rule)
     {
         if (rule == null) return;
-        // Cycle through: null -> 0.3 -> 0.5 -> 0.7 -> null
         double? newOpacity = rule.OpacityOverride switch
         {
             null => 0.3,
@@ -209,6 +283,10 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (_suppressSave) return;
 
+        var hotkeys = new Dictionary<string, string>();
+        foreach (var binding in HotkeyBindings)
+            hotkeys[binding.ActionKey] = binding.GestureString;
+
         _settingsStore.Update(s => s with
         {
             Enabled = Enabled,
@@ -232,7 +310,8 @@ public partial class SettingsViewModel : ObservableObject
             BlurIntensity = BlurIntensity,
             TrayIconTheme = TrayIconTheme,
             ShowOverlayDiagnostics = ShowOverlayDiagnostics,
-            AppRules = AppRules.ToList()
+            AppRules = AppRules.ToList(),
+            Hotkeys = hotkeys
         });
     }
 }
