@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FocalFade.Settings"
         Title="FocalFade Settings"
-        Width="520" Height="640"
+        Width="540" Height="680"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize"
         ShowInTaskbar="True"
@@ -21,7 +21,6 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextForeground}"/>
         </Style>
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
@@ -31,10 +30,6 @@
             <Setter Property="Padding" Value="16"/>
             <Setter Property="Margin" Value="0,0,0,12"/>
         </Style>
-        <Style x:Key="Row" TargetType="StackPanel">
-            <Setter Property="Orientation" Value="Horizontal"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -43,17 +38,15 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="FocalFade Settings" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextForeground}"/>
+            <TextBlock Text="FocalFade Settings" FontSize="22" FontWeight="Bold"/>
             <TextBlock Text="Configure how FocalFade helps you focus" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
         </StackPanel>
 
-        <!-- Scrollable content -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
 
-                <!-- General Section -->
+                <!-- General -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="General" Style="{StaticResource SectionHeader}"/>
@@ -61,11 +54,12 @@
                         <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,6"/>
                         <CheckBox Content="Start enabled" IsChecked="{Binding StartEnabled}" Margin="0,0,0,6"/>
                         <CheckBox Content="Pause on fullscreen apps" IsChecked="{Binding PauseOnFullscreen}" Margin="0,0,0,6"/>
+                        <CheckBox Content="Hide overlay while dragging windows" IsChecked="{Binding HideOverlayWhileDragging}" Margin="0,0,0,6"/>
                         <CheckBox Content="Presentation Mode" IsChecked="{Binding PresentationModeEnabled}" Margin="0,0,0,6"/>
                     </StackPanel>
                 </Border>
 
-                <!-- Appearance Section -->
+                <!-- Appearance -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Appearance" Style="{StaticResource SectionHeader}"/>
@@ -73,81 +67,80 @@
                         <TextBlock Text="Opacity" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <Slider Value="{Binding Opacity}" Minimum="0.10" Maximum="0.90"
-                                    TickFrequency="0.05" IsSnapToTickEnabled="True"
-                                    Width="280" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding OpacityPercent}" Margin="12,0,0,0"
-                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}"/>
+                                    TickFrequency="0.05" IsSnapToTickEnabled="True" Width="280"/>
+                            <TextBlock Text="{Binding OpacityPercent}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
 
                         <TextBlock Text="Focus Margin" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <Slider Value="{Binding FocusMargin}" Minimum="0" Maximum="64"
-                                    TickFrequency="1" IsSnapToTickEnabled="True"
-                                    Width="280" VerticalAlignment="Center"/>
+                                    TickFrequency="1" IsSnapToTickEnabled="True" Width="280"/>
                             <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}">
-                                <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0:F0} px">
-                                        <Binding Path="FocusMargin"/>
-                                    </MultiBinding>
-                                </TextBlock.Text>
+                                <TextBlock.Text><MultiBinding StringFormat="{}{0:F0} px"><Binding Path="FocusMargin"/></MultiBinding></TextBlock.Text>
                             </TextBlock>
                         </StackPanel>
 
                         <TextBlock Text="Corner Radius" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <Slider Value="{Binding CornerRadius}" Minimum="0" Maximum="32"
-                                    TickFrequency="1" IsSnapToTickEnabled="True"
-                                    Width="280" VerticalAlignment="Center"/>
+                                    TickFrequency="1" IsSnapToTickEnabled="True" Width="280"/>
                             <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}">
-                                <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0:F0} px">
-                                        <Binding Path="CornerRadius"/>
-                                    </MultiBinding>
-                                </TextBlock.Text>
+                                <TextBlock.Text><MultiBinding StringFormat="{}{0:F0} px"><Binding Path="CornerRadius"/></MultiBinding></TextBlock.Text>
                             </TextBlock>
                         </StackPanel>
 
+                        <!-- Color picker -->
                         <TextBlock Text="Dim Color" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <RadioButton Content="Black" GroupName="DimColor"
-                                         IsChecked="{Binding DimColor, Converter={x:Static vm:SettingsWindow.BlackColorConverter}}"
-                                         Margin="0,0,12,0"/>
-                            <RadioButton Content="Dark Gray" GroupName="DimColor"
-                                         IsChecked="{Binding DimColor, Converter={x:Static vm:SettingsWindow.DarkGrayConverter}}"
-                                         Margin="0,0,12,0"/>
-                            <RadioButton Content="Dark Blue" GroupName="DimColor"
-                                         IsChecked="{Binding DimColor, Converter={x:Static vm:SettingsWindow.DarkBlueConverter}}"
-                                         Margin="0,0,12,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBox Text="{Binding DimColor, UpdateSourceTrigger=LostFocus}" Width="90" VerticalAlignment="Center"/>
+                            <Border Width="24" Height="24" Margin="8,0,0,0" CornerRadius="4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                <Border.Background>
+                                    <SolidColorBrush Color="{Binding DimColor, Converter={x:Static vm:SettingsWindow.HexToColorConverter}}"/>
+                                </Border.Background>
+                            </Border>
                         </StackPanel>
+                        <ItemsControl ItemsSource="{Binding ColorPresets}" Margin="0,0,0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Padding="6,3" Margin="0,0,6,4" Command="{Binding DataContext.ApplyColorPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="14" Height="14" CornerRadius="3" Margin="0,0,4,0" BorderBrush="#CCC" BorderThickness="1">
+                                                <Border.Background><SolidColorBrush Color="{Binding Hex, Converter={x:Static vm:SettingsWindow.HexToColorConverter}}"/></Border.Background>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" FontSize="11"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                        <CheckBox Content="Show border around focused window" IsChecked="{Binding ShowBorder}" Margin="0,4,0,6"/>
+                        <CheckBox Content="Show border around focused window" IsChecked="{Binding ShowBorder}" Margin="0,0,0,6"/>
                         <CheckBox Content="Enable animations" IsChecked="{Binding AnimationsEnabled}" Margin="0,0,0,6"/>
                     </StackPanel>
                 </Border>
 
-                <!-- Focus Behavior Section -->
+                <!-- Focus Behavior -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Focus Behavior" Style="{StaticResource SectionHeader}"/>
-
                         <TextBlock Text="Focus Mode" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
-                        <ComboBox ItemsSource="{Binding OverlayModes}" SelectedItem="{Binding OverlayMode}"
-                                  Width="200" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-
+                        <ComboBox ItemsSource="{Binding OverlayModes}" SelectedItem="{Binding OverlayMode}" Width="200" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                         <TextBlock Text="Fullscreen Behavior" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
-                        <ComboBox ItemsSource="{Binding FullscreenBehaviors}" SelectedItem="{Binding FullscreenBehavior}"
-                                  Width="200" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+                        <ComboBox ItemsSource="{Binding FullscreenBehaviors}" SelectedItem="{Binding FullscreenBehavior}" Width="200" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                     </StackPanel>
                 </Border>
 
-                <!-- App Rules Section -->
+                <!-- App Rules -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="App Rules" Style="{StaticResource SectionHeader}"/>
-                        <TextBlock Text="Apps excluded from dimming" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
-
-                        <ListBox ItemsSource="{Binding AppRules}" MaxHeight="180" Margin="0,0,0,8"
-                                 BorderBrush="{DynamicResource BorderBrush}">
+                        <TextBlock Text="Excluded apps and per-app opacity overrides" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
+                        <ListBox ItemsSource="{Binding AppRules}" MaxHeight="180" Margin="0,0,0,8" BorderBrush="{DynamicResource BorderBrush}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
@@ -156,74 +149,56 @@
                                         <TextBlock Text=" (" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding ProcessName}" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                         <TextBlock Text=")" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                        <TextBlock Margin="8,0,0,0" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center">
+                                            <TextBlock.Text>
+                                                <Binding Path="OpacityOverride" StringFormat=" Opacity: {0:P0}" FallbackValue=""/>
+                                            </TextBlock.Text>
+                                        </TextBlock>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-
                         <StackPanel Orientation="Horizontal">
-                            <Button Content="Add Current App" Command="{Binding AddCurrentAppCommand}"
-                                    Margin="0,0,8,0" Padding="12,4"/>
-                            <Button Content="Remove Selected" Command="{Binding RemoveSelectedRuleCommand}"
-                                    Padding="12,4"/>
+                            <Button Content="Add Current App" Command="{Binding AddCurrentAppCommand}" Margin="0,0,8,0" Padding="12,4"/>
+                            <Button Content="Toggle Opacity" Command="{Binding SetRuleOpacityCommand}" CommandParameter="{Binding SelectedItem, ElementName=AppRulesListBox}" Margin="0,0,8,0" Padding="12,4"/>
+                            <Button Content="Remove" Command="{Binding RemoveSelectedRuleCommand}" Padding="12,4"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Hotkeys Section -->
+                <!-- Hotkeys -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Hotkeys" Style="{StaticResource SectionHeader}"/>
                         <TextBlock Text="Default hotkeys (editing coming in a future release)" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
-
-                        <StackPanel Margin="0,0,0,4">
-                            <TextBlock Foreground="{DynamicResource TextForeground}">
-                                <Run Text="Ctrl+Alt+F" FontWeight="SemiBold"/>
-                                <Run Text="  Toggle enabled"/>
-                            </TextBlock>
-                        </StackPanel>
-                        <StackPanel Margin="0,0,0,4">
-                            <TextBlock Foreground="{DynamicResource TextForeground}">
-                                <Run Text="Ctrl+Alt+Up" FontWeight="SemiBold"/>
-                                <Run Text="  Increase opacity"/>
-                            </TextBlock>
-                        </StackPanel>
-                        <StackPanel Margin="0,0,0,4">
-                            <TextBlock Foreground="{DynamicResource TextForeground}">
-                                <Run Text="Ctrl+Alt+Down" FontWeight="SemiBold"/>
-                                <Run Text="  Decrease opacity"/>
-                            </TextBlock>
-                        </StackPanel>
-                        <StackPanel Margin="0,0,0,4">
-                            <TextBlock Foreground="{DynamicResource TextForeground}">
-                                <Run Text="Ctrl+Alt+P" FontWeight="SemiBold"/>
-                                <Run Text="  Presentation mode"/>
-                            </TextBlock>
-                        </StackPanel>
-                        <StackPanel Margin="0,0,0,4">
-                            <TextBlock Foreground="{DynamicResource TextForeground}">
-                                <Run Text="Ctrl+Alt+Space" FontWeight="SemiBold"/>
-                                <Run Text="  Peek (10 sec)"/>
-                            </TextBlock>
-                        </StackPanel>
+                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+F" FontWeight="SemiBold"/><Run Text="  Toggle enabled"/></TextBlock></StackPanel>
+                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+Up" FontWeight="SemiBold"/><Run Text="  Increase opacity"/></TextBlock></StackPanel>
+                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+Down" FontWeight="SemiBold"/><Run Text="  Decrease opacity"/></TextBlock></StackPanel>
+                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+P" FontWeight="SemiBold"/><Run Text="  Presentation mode"/></TextBlock></StackPanel>
+                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+Space" FontWeight="SemiBold"/><Run Text="  Peek (10 sec)"/></TextBlock></StackPanel>
+                        <StackPanel Margin="0,0,0,4"><TextBlock><Run Text="Ctrl+Alt+S" FontWeight="SemiBold"/><Run Text="  Open settings"/></TextBlock></StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Diagnostics Section -->
+                <!-- Tray Icon Theme -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Tray Icon" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Text="Theme" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4"/>
+                        <ComboBox ItemsSource="{Binding TrayIconThemes}" SelectedItem="{Binding TrayIconTheme}" Width="150" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Diagnostics -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Diagnostics" Style="{StaticResource SectionHeader}"/>
                         <TextBlock Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8">
-                            <Run Text="Version: "/>
-                            <Run Text="{Binding Version, Mode=OneWay}"/>
+                            <Run Text="Version: "/><Run Text="{Binding Version, Mode=OneWay}"/>
                         </TextBlock>
-
-                        <CheckBox Content="Verbose logging" IsChecked="{Binding VerboseLogging}" Margin="0,0,0,12"/>
-
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="Reset to Defaults" Command="{Binding ResetToDefaultsCommand}"
-                                    Padding="12,4" Margin="0,0,8,0"/>
-                        </StackPanel>
+                        <CheckBox Content="Verbose logging" IsChecked="{Binding VerboseLogging}" Margin="0,0,0,6"/>
+                        <CheckBox Content="Show overlay diagnostics" IsChecked="{Binding ShowOverlayDiagnostics}" Margin="0,0,0,12"/>
+                        <Button Content="Reset to Defaults" Command="{Binding ResetToDefaultsCommand}" Padding="12,4"/>
                     </StackPanel>
                 </Border>
 

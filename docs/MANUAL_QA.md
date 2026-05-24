@@ -4,76 +4,88 @@
 
 Test each item and check it off when passing.
 
-### Basic Functionality
+### 1. Single Monitor - Core Behavior
 - [ ] Launch FocalFade.exe
 - [ ] Tray icon appears in system tray
-- [ ] Double-click tray icon opens Settings window
-- [ ] Right-click tray icon shows context menu
-
-### Enable/Disable
-- [ ] Toggle Enabled from tray menu - overlay appears/disappears
-- [ ] Ctrl+Alt+F toggles enabled state
-- [ ] Tray tooltip shows "FocalFade: On" / "FocalFade: Off"
-
-### Focus Tracking
+- [ ] Enable from tray menu
 - [ ] Open Notepad, VS Code, browser
-- [ ] Switch between windows - clear region follows active window
-- [ ] Background windows are dimmed
-- [ ] Switching windows updates the clear region smoothly
+- [ ] Switch between them rapidly - overlay follows real active window
+- [ ] No laggy half-second delay - overlay updates quickly
+- [ ] Background windows are dimmed correctly
 
-### Multi-Monitor
-- [ ] Move active window across monitors - overlay follows
-- [ ] Each monitor has its own overlay
-- [ ] Test with negative monitor coordinates if available
+### 2. Single Monitor - Drag Detection
+- [ ] Drag a window - overlay hides immediately
+- [ ] Release window - overlay reappears after short delay
+- [ ] Resize a window - overlay hides during resize
+- [ ] Release - overlay reappears
+- [ ] Verify no jitter during drag
 
-### Opacity
-- [ ] Change opacity from tray menu (20%, 35%, 45%, 55%, 70%)
-- [ ] Opacity changes apply immediately
-- [ ] Ctrl+Alt+Up/Down adjusts opacity
+### 3. Single Monitor - Shell/USB False Target Prevention
+- [ ] Insert a USB drive or trigger AutoPlay
+- [ ] Verify FocalFade does NOT focus on a tiny desktop icon or USB shell surface
+- [ ] Previous working window remains the target
+- [ ] If no valid window, overlay hides safely (no tiny hole)
 
-### Settings Window
-- [ ] Opens from tray and doesn't break overlay behavior
+### 4. Multi-Monitor
+- [ ] Primary monitor on left, secondary on right
+- [ ] Active window on monitor 1 - hole appears on monitor 1, monitor 2 fully dimmed
+- [ ] Active window on monitor 2 - hole appears on monitor 2, monitor 1 fully dimmed
+- [ ] Move window between monitors - hole follows correctly
+- [ ] Window spanning two monitors - holes on both monitors
+- [ ] If available: different scaling (e.g., 100% + 125%)
+- [ ] If available: secondary monitor at negative X coordinates
+
+### 5. Fullscreen
+- [ ] Play fullscreen browser video - overlay pauses by default
+- [ ] PowerPoint slideshow - overlay pauses
+- [ ] Toggle "Pause on fullscreen apps" off - overlay dims even in fullscreen
+
+### 6. Settings
+- [ ] Double-click tray icon opens Settings
 - [ ] Adjust opacity slider - overlay updates live
-- [ ] Adjust focus margin slider
-- [ ] Adjust corner radius slider
+- [ ] Adjust focus margin and corner radius
+- [ ] Change dim color using hex input
+- [ ] Click a color preset - color updates
 - [ ] Toggle animations on/off
-- [ ] Settings are saved and restored after restart
+- [ ] Settings saved after restart
 
-### Focus Modes
-- [ ] Active Window mode - only foreground window clear
-- [ ] Active App mode - all windows of foreground app clear
-- [ ] Current Monitor Only - dims only monitor with active window
-- [ ] All Monitors - dims all monitors
+### 7. App Rules & Per-App Opacity
+- [ ] Add current app to exclusions - overlay hides for that app
+- [ ] Set per-app opacity override on a rule
+- [ ] Switch to that app - overlay uses per-app opacity
+- [ ] Switch away - overlay uses global opacity
 
-### Fullscreen
-- [ ] Play fullscreen video - overlay pauses by default
-- [ ] Open PowerPoint fullscreen - overlay pauses
-- [ ] Toggle "Pause on fullscreen apps" behavior
-
-### App Rules
-- [ ] Add current app to exclusions
-- [ ] Excluded app's window is not dimmed
-- [ ] Remove app from exclusions
-- [ ] Default exclusions work (PowerPoint, OBS, VLC, etc.)
-
-### Presentation Mode
-- [ ] Ctrl+Alt+P toggles Presentation Mode
-- [ ] Presentation mode shows optional border/halo
-- [ ] Tray menu reflects Presentation Mode state
-
-### Startup
-- [ ] Enable "Start with Windows" - registry value created
-- [ ] Verify in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-- [ ] Disable "Start with Windows" - registry value removed
-
-### Hotkeys
+### 8. Hotkeys
 - [ ] Ctrl+Alt+F - Toggle enabled
 - [ ] Ctrl+Alt+Up - Increase opacity
 - [ ] Ctrl+Alt+Down - Decrease opacity
 - [ ] Ctrl+Alt+P - Presentation mode
 - [ ] Ctrl+Alt+Space - Peek (10 seconds)
+- [ ] Ctrl+Alt+S - Open settings
 
-### Exit
+### 9. Tray Icon Theme
+- [ ] Set tray icon theme to Auto
+- [ ] Toggle Windows light/dark app theme in Settings > Personalization
+- [ ] Verify tray icon updates to match theme
+- [ ] Set theme to Light - icon stays light regardless
+- [ ] Set theme to Dark - icon stays dark regardless
+
+### 10. Blur (Experimental)
+- [ ] Enable blur in Settings
+- [ ] Verify focused window remains clear (not blurred)
+- [ ] Verify dimmed areas show blur effect
+- [ ] Disable blur - returns to normal dimming
+
+### 11. Presentation Mode
+- [ ] Ctrl+Alt+P toggles Presentation Mode
+- [ ] Presentation mode shows optional border/halo
+- [ ] Stronger default dim
+
+### 12. Start with Windows
+- [ ] Enable - registry value created in HKCU\...\Run
+- [ ] Disable - registry value removed
+
+### 13. Exit
 - [ ] Exit from tray menu
 - [ ] No overlay remains on screen
 - [ ] Tray icon disappears

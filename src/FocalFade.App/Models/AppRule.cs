@@ -15,4 +15,16 @@ public sealed record AppRule
 
     [JsonPropertyName("enabled")]
     public bool Enabled { get; init; } = true;
+
+    [JsonPropertyName("opacityOverride")]
+    public double? OpacityOverride { get; init; }
+
+    [JsonPropertyName("dimColorOverride")]
+    public string? DimColorOverride { get; init; }
+
+    [JsonPropertyName("focusMarginOverride")]
+    public double? FocusMarginOverride { get; init; }
+
+    [JsonPropertyName("cornerRadiusOverride")]
+    public double? CornerRadiusOverride { get; init; }
 }

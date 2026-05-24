@@ -21,7 +21,8 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "notepad.exe", Behavior = DimmingBehavior.Ignore, Enabled = true }
         ]);
 
-        _manager.Evaluate("notepad.exe").Should().Be(DimmingBehavior.Ignore);
+        var result = _manager.Evaluate("notepad.exe");
+        result.Behavior.Should().Be(DimmingBehavior.Ignore);
     }
 
     [Fact]
@@ -31,8 +32,8 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "Notepad.EXE", Behavior = DimmingBehavior.Ignore, Enabled = true }
         ]);
 
-        _manager.Evaluate("notepad.exe").Should().Be(DimmingBehavior.Ignore);
-        _manager.Evaluate("NOTEPAD.EXE").Should().Be(DimmingBehavior.Ignore);
+        _manager.Evaluate("notepad.exe").Behavior.Should().Be(DimmingBehavior.Ignore);
+        _manager.Evaluate("NOTEPAD.EXE").Behavior.Should().Be(DimmingBehavior.Ignore);
     }
 
     [Fact]
@@ -42,7 +43,7 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "notepad.exe", Behavior = DimmingBehavior.Ignore, Enabled = false }
         ]);
 
-        _manager.Evaluate("notepad.exe").Should().Be(DimmingBehavior.Normal);
+        _manager.Evaluate("notepad.exe").Behavior.Should().Be(DimmingBehavior.Normal);
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "notepad.exe", Behavior = DimmingBehavior.Ignore, Enabled = true }
         ]);
 
-        _manager.Evaluate("chrome.exe").Should().Be(DimmingBehavior.Normal);
+        _manager.Evaluate("chrome.exe").Behavior.Should().Be(DimmingBehavior.Normal);
     }
 
     [Fact]
@@ -62,7 +63,7 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "notepad.exe", Behavior = DimmingBehavior.Ignore, Enabled = true }
         ]);
 
-        _manager.Evaluate("").Should().Be(DimmingBehavior.Normal);
+        _manager.Evaluate("").Behavior.Should().Be(DimmingBehavior.Normal);
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "test.exe", Behavior = DimmingBehavior.ForceDim, Enabled = true }
         ]);
 
-        _manager.Evaluate("test.exe").Should().Be(DimmingBehavior.Ignore);
+        _manager.Evaluate("test.exe").Behavior.Should().Be(DimmingBehavior.Ignore);
     }
 
     [Fact]
@@ -83,6 +84,6 @@ public class AppRuleManagerTests
             new AppRule { ProcessName = "powerpnt.exe", Behavior = DimmingBehavior.Presentation, Enabled = true }
         ]);
 
-        _manager.Evaluate("powerpnt.exe").Should().Be(DimmingBehavior.Presentation);
+        _manager.Evaluate("powerpnt.exe").Behavior.Should().Be(DimmingBehavior.Presentation);
     }
 }

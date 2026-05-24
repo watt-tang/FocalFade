@@ -11,7 +11,9 @@ public sealed class OverlayRenderer : IDisposable
     private readonly IMonitorManager _monitorManager;
     private readonly Dictionary<IntPtr, FocusOverlayWindow> _overlayWindows = new();
     private OverlayAppearance _appearance = new();
+    private OverlayMode _currentMode = OverlayMode.AllMonitors;
     private bool _disposed;
+    private bool _isHiddenForDrag;
 
     public OverlayRenderer(ILogger<OverlayRenderer> logger, IMonitorManager monitorManager)
     {
@@ -34,9 +36,11 @@ public sealed class OverlayRenderer : IDisposable
             {
                 var overlay = new FocusOverlayWindow();
                 overlay.PositionOnMonitor(monitor);
-                overlay.Hide();
+                overlay.HideImmediate();
                 _overlayWindows[monitor.HMonitor] = overlay;
-                _logger.LogDebug("Created overlay for monitor {Device}", monitor.DeviceName);
+                _logger.LogDebug("Created overlay for monitor {Device}: Physical=({X},{Y},{W},{H})",
+                    monitor.DeviceName, monitor.PhysicalBounds.X, monitor.PhysicalBounds.Y,
+                    monitor.PhysicalBounds.Width, monitor.PhysicalBounds.Height);
             }
             catch (Exception ex)
             {
@@ -47,48 +51,65 @@ public sealed class OverlayRenderer : IDisposable
 
     public void Show()
     {
+        if (_isHiddenForDrag) return;
         int fadeMs = _appearance.AnimationsEnabled ? _appearance.FadeDurationMs : 0;
         foreach (var overlay in _overlayWindows.Values)
-        {
             overlay.ShowWithAnimation(fadeMs);
-        }
     }
 
     public void Hide()
     {
         int fadeMs = _appearance.AnimationsEnabled ? _appearance.FadeDurationMs : 0;
         foreach (var overlay in _overlayWindows.Values)
-        {
             overlay.HideWithAnimation(fadeMs);
-        }
     }
 
-    public void UpdateFocusRects(List<Rect> focusRects, OverlayMode mode)
+    public void HideImmediate()
     {
+        foreach (var overlay in _overlayWindows.Values)
+            overlay.HideImmediate();
+    }
+
+    public void ShowImmediate()
+    {
+        if (_isHiddenForDrag) return;
+        foreach (var overlay in _overlayWindows.Values)
+            overlay.ShowImmediate();
+    }
+
+    public void SetHiddenForDrag(bool hidden)
+    {
+        _isHiddenForDrag = hidden;
+        if (hidden)
+            HideImmediate();
+    }
+
+    /// <summary>
+    /// Update focus rects. focusRects are in DIP virtual screen coordinates.
+    /// </summary>
+    public void UpdateFocusRects(List<Rect> focusRectsDip, OverlayMode mode)
+    {
+        _currentMode = mode;
+
         foreach (var (hMonitor, overlay) in _overlayWindows)
         {
             var monitor = _monitorManager.Monitors.FirstOrDefault(m => m.HMonitor == hMonitor);
             if (monitor == null) continue;
 
+            // Clip focus rects to this monitor's DIP bounds
             List<Rect> rectsForMonitor;
-
             switch (mode)
             {
                 case OverlayMode.CurrentMonitor:
-                    // Only show on the monitor containing the focus rect
-                    if (focusRects.Count > 0 && monitor.DipBounds.IntersectsWith(GetBoundsRect(focusRects)))
-                    {
-                        rectsForMonitor = OverlayGeometryService.GetIntersectionsWithMonitor(monitor.DipBounds, focusRects);
-                    }
+                    if (focusRectsDip.Count > 0 && RectsIntersectMonitor(monitor.DipBounds, focusRectsDip))
+                        rectsForMonitor = ClipRectsToMonitor(monitor.DipBounds, focusRectsDip);
                     else
-                    {
                         rectsForMonitor = [];
-                    }
                     break;
 
                 case OverlayMode.AllMonitors:
                 default:
-                    rectsForMonitor = OverlayGeometryService.GetIntersectionsWithMonitor(monitor.DipBounds, focusRects);
+                    rectsForMonitor = ClipRectsToMonitor(monitor.DipBounds, focusRectsDip);
                     break;
             }
 
@@ -101,12 +122,28 @@ public sealed class OverlayRenderer : IDisposable
         _appearance = appearance;
     }
 
-    private static Rect GetBoundsRect(List<Rect> rects)
+    private static bool RectsIntersectMonitor(Rect monitorDipBounds, List<Rect> rects)
     {
-        if (rects.Count == 0) return Rect.Empty;
-        var result = rects[0];
-        foreach (var r in rects.Skip(1))
-            result.Union(r);
+        foreach (var r in rects)
+        {
+            var intersection = r;
+            intersection.Intersect(monitorDipBounds);
+            if (intersection.Width > 0 && intersection.Height > 0)
+                return true;
+        }
+        return false;
+    }
+
+    private static List<Rect> ClipRectsToMonitor(Rect monitorDipBounds, List<Rect> rects)
+    {
+        var result = new List<Rect>();
+        foreach (var r in rects)
+        {
+            var clipped = r;
+            clipped.Intersect(monitorDipBounds);
+            if (clipped.Width > 0 && clipped.Height > 0)
+                result.Add(clipped);
+        }
         return result;
     }
 
@@ -114,11 +151,7 @@ public sealed class OverlayRenderer : IDisposable
     {
         foreach (var overlay in _overlayWindows.Values)
         {
-            try
-            {
-                overlay.Close();
-            }
-            catch { }
+            try { overlay.Close(); } catch { }
         }
         _overlayWindows.Clear();
     }

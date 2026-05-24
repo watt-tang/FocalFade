@@ -4,7 +4,7 @@ namespace FocalFade.Models;
 
 public sealed record AppSettings
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     [JsonPropertyName("schemaVersion")]
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -66,6 +66,39 @@ public sealed record AppSettings
     [JsonPropertyName("borderColor")]
     public string BorderColor { get; init; } = "#50FFFFFF";
 
+    // New settings for stabilization
+    [JsonPropertyName("hideOverlayWhileDragging")]
+    public bool HideOverlayWhileDragging { get; init; } = true;
+
+    [JsonPropertyName("ignoreTinyWindows")]
+    public bool IgnoreTinyWindows { get; init; } = true;
+
+    [JsonPropertyName("tinyWindowMinWidth")]
+    public int TinyWindowMinWidth { get; init; } = Native.NativeConstants.TinyWindowMinWidth;
+
+    [JsonPropertyName("tinyWindowMinHeight")]
+    public int TinyWindowMinHeight { get; init; } = Native.NativeConstants.TinyWindowMinHeight;
+
+    [JsonPropertyName("useLastValidTargetOnShellFocus")]
+    public bool UseLastValidTargetOnShellFocus { get; init; } = true;
+
+    [JsonPropertyName("lastValidTargetGracePeriodMs")]
+    public int LastValidTargetGracePeriodMs { get; init; } = 1500;
+
+    [JsonPropertyName("showOverlayDiagnostics")]
+    public bool ShowOverlayDiagnostics { get; init; }
+
+    // Blur settings
+    [JsonPropertyName("blurEnabled")]
+    public bool BlurEnabled { get; init; }
+
+    [JsonPropertyName("blurIntensity")]
+    public double BlurIntensity { get; init; } = 0.6;
+
+    // Tray icon theme
+    [JsonPropertyName("trayIconTheme")]
+    public TrayIconTheme TrayIconTheme { get; init; } = TrayIconTheme.Auto;
+
     [JsonPropertyName("appRules")]
     public List<AppRule> AppRules { get; init; } = GetDefaultAppRules();
 
@@ -96,6 +129,7 @@ public sealed record AppSettings
         ["IncreaseOpacity"] = "Ctrl+Alt+Up",
         ["DecreaseOpacity"] = "Ctrl+Alt+Down",
         ["PresentationMode"] = "Ctrl+Alt+P",
-        ["TemporaryPeek"] = "Ctrl+Alt+Space"
+        ["TemporaryPeek"] = "Ctrl+Alt+Space",
+        ["OpenSettings"] = "Ctrl+Alt+S"
     };
 }

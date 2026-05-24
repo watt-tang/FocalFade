@@ -2,6 +2,7 @@ using FocalFade.Services;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace FocalFade.Settings;
 
@@ -20,29 +21,26 @@ public partial class SettingsWindow : Window
 
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        // Hide instead of close so it can be reopened
         e.Cancel = true;
         Hide();
     }
 
-    // Color converters for radio buttons
-    public static IValueConverter BlackColorConverter { get; } = new ColorMatchConverter("#000000");
-    public static IValueConverter DarkGrayConverter { get; } = new ColorMatchConverter("#333333");
-    public static IValueConverter DarkBlueConverter { get; } = new ColorMatchConverter("#1A2744");
+    public static IValueConverter HexToColorConverter { get; } = new HexToColorValueConverter();
 
-    private class ColorMatchConverter : IValueConverter
+    private class HexToColorValueConverter : IValueConverter
     {
-        private readonly string _matchColor;
-        public ColorMatchConverter(string matchColor) => _matchColor = matchColor;
-
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return string.Equals(value as string, _matchColor, StringComparison.OrdinalIgnoreCase);
+            if (value is string hex && Core.ColorService.TryParseHex(hex, out var color))
+                return color;
+            return Colors.Black;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return (bool)value ? _matchColor : Binding.DoNothing;
+            if (value is Color color)
+                return Core.ColorService.ToHexRgb(color);
+            return "#000000";
         }
     }
 }

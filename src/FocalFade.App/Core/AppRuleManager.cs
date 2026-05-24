@@ -17,17 +17,14 @@ public sealed class AppRuleManager : IAppRuleManager
 
     public void SetRules(List<AppRule> rules)
     {
-        lock (_lock)
-        {
-            _rules = rules;
-        }
+        lock (_lock) { _rules = rules; }
         _logger.LogDebug("App rules updated: {Count} rules", rules.Count);
     }
 
-    public DimmingBehavior Evaluate(string processName)
+    public AppRuleResult Evaluate(string processName)
     {
         if (string.IsNullOrEmpty(processName))
-            return DimmingBehavior.Normal;
+            return new AppRuleResult();
 
         lock (_lock)
         {
@@ -38,22 +35,35 @@ public sealed class AppRuleManager : IAppRuleManager
                 if (string.Equals(rule.ProcessName, processName, StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogDebug("App rule matched: {Process} -> {Behavior}", processName, rule.Behavior);
-                    return rule.Behavior;
+                    return new AppRuleResult
+                    {
+                        Behavior = rule.Behavior,
+                        OpacityOverride = rule.OpacityOverride,
+                        DimColorOverride = rule.DimColorOverride,
+                        FocusMarginOverride = rule.FocusMarginOverride,
+                        CornerRadiusOverride = rule.CornerRadiusOverride
+                    };
                 }
 
-                // Wildcard support (future-proofing)
+                // Wildcard support
                 if (rule.ProcessName.EndsWith(".*", StringComparison.OrdinalIgnoreCase))
                 {
                     var prefix = rule.ProcessName[..^2];
                     if (processName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.LogDebug("App rule wildcard matched: {Process} -> {Behavior}", processName, rule.Behavior);
-                        return rule.Behavior;
+                        return new AppRuleResult
+                        {
+                            Behavior = rule.Behavior,
+                            OpacityOverride = rule.OpacityOverride,
+                            DimColorOverride = rule.DimColorOverride,
+                            FocusMarginOverride = rule.FocusMarginOverride,
+                            CornerRadiusOverride = rule.CornerRadiusOverride
+                        };
                     }
                 }
             }
         }
 
-        return DimmingBehavior.Normal;
+        return new AppRuleResult();
     }
 }

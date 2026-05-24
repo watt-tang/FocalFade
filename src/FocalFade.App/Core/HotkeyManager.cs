@@ -37,7 +37,8 @@ public sealed class HotkeyManager : IHotkeyManager
             ["IncreaseOpacity"] = NativeConstants.HOTKEY_INCREASE_OPACITY,
             ["DecreaseOpacity"] = NativeConstants.HOTKEY_DECREASE_OPACITY,
             ["PresentationMode"] = NativeConstants.HOTKEY_PRESENTATION_MODE,
-            ["TemporaryPeek"] = NativeConstants.HOTKEY_TEMPORARY_PEEK
+            ["TemporaryPeek"] = NativeConstants.HOTKEY_TEMPORARY_PEEK,
+            ["OpenSettings"] = NativeConstants.HOTKEY_OPEN_SETTINGS
         };
 
         foreach (var (action, id) in actionMap)

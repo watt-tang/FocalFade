@@ -46,6 +46,10 @@ public static class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
+    [DllImport(DllName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, EnumMonitorsProc lpfnEnum, IntPtr dwData);
+
     [DllImport(DllName, EntryPoint = "GetWindowLongPtrW")]
     public static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
 
@@ -64,10 +68,19 @@ public static class User32
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
     [DllImport(DllName)]
+    public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    [DllImport(DllName)]
+    public static extern IntPtr GetParent(IntPtr hWnd);
+
+    [DllImport(DllName)]
     public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint dwFlags);
 
     [DllImport(DllName)]
     public static extern IntPtr MonitorFromRect(ref RECT lprc, uint dwFlags);
+
+    [DllImport(DllName)]
+    public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
     [DllImport(DllName, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -98,8 +111,33 @@ public static class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetWindowInfo(IntPtr hWnd, ref WINDOWINFO pwi);
 
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport(DllName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetCursorPos(out POINT lpPoint);
 
+    [DllImport(DllName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
+
+    [DllImport(DllName)]
+    public static extern IntPtr GetFocus();
+
+    [DllImport(DllName)]
+    public static extern IntPtr GetCapture();
+
+    [DllImport(DllName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport(DllName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport(DllName)]
+    public static extern IntPtr GetTopWindow(IntPtr hWnd);
+
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    public delegate bool EnumMonitorsProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData);
     public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
 
     public static string GetWindowText(IntPtr hWnd)
@@ -129,5 +167,15 @@ public static class User32
     {
         try { return SetWindowLongPtrW(hWnd, nIndex, dwNewLong); }
         catch { return new IntPtr(SetWindowLongW32(hWnd, nIndex, dwNewLong.ToInt32())); }
+    }
+
+    public static uint GetWindowStyle(IntPtr hWnd)
+    {
+        return (uint)SafeGetWindowLongPtr(hWnd, NativeConstants.GWL_STYLE).ToInt64();
+    }
+
+    public static uint GetWindowExStyle(IntPtr hWnd)
+    {
+        return (uint)SafeGetWindowLongPtr(hWnd, NativeConstants.GWL_EXSTYLE).ToInt64();
     }
 }

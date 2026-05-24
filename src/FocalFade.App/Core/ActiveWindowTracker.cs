@@ -9,29 +9,29 @@ namespace FocalFade.Core;
 public sealed class ActiveWindowTracker : IActiveWindowTracker
 {
     private readonly ILogger<ActiveWindowTracker> _logger;
-    private readonly WindowInfoProvider _windowInfoProvider;
-    private readonly Debouncer _debouncer;
+    private readonly WindowTargetSelector _targetSelector;
     private readonly Dispatcher _dispatcher;
 
     // Keep delegates alive to prevent GC collection
     private User32.WinEventDelegate? _winEventDelegate;
-    private IntPtr _foregroundHook = IntPtr.Zero;
+    private readonly List<IntPtr> _hooks = [];
     private DispatcherTimer? _fallbackTimer;
     private bool _started;
     private bool _disposed;
 
-    private static readonly HashSet<string> IgnoredClasses = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd",
-        "NotifyIconOverflowWindow", "DV2ControlHost",
-        "TaskListThumbnailWnd", "Windows.UI.Core.CoreWindow"
-    };
+    // Drag state tracking
+    private bool _isDragging;
+    public event EventHandler? DragStarted;
+    public event EventHandler? DragEnded;
 
-    public ActiveWindowTracker(ILogger<ActiveWindowTracker> logger, WindowInfoProvider windowInfoProvider)
+    // Throttle for move/size updates
+    private DateTime _lastUpdateTime = DateTime.MinValue;
+    private static readonly TimeSpan UpdateThrottle = TimeSpan.FromMilliseconds(33);
+
+    public ActiveWindowTracker(ILogger<ActiveWindowTracker> logger, WindowTargetSelector targetSelector)
     {
         _logger = logger;
-        _windowInfoProvider = windowInfoProvider;
-        _debouncer = new Debouncer(40);
+        _targetSelector = targetSelector;
         _dispatcher = Dispatcher.CurrentDispatcher;
     }
 
@@ -45,27 +45,26 @@ public sealed class ActiveWindowTracker : IActiveWindowTracker
 
         try
         {
-            // Keep the delegate reference alive
             _winEventDelegate = OnWinEvent;
 
-            _foregroundHook = User32.SetWinEventHook(
-                NativeConstants.EVENT_SYSTEM_FOREGROUND,
-                NativeConstants.EVENT_SYSTEM_FOREGROUND,
-                IntPtr.Zero,
-                _winEventDelegate,
-                0, 0,
-                NativeConstants.WINEVENT_OUTOFCONTEXT | NativeConstants.WINEVENT_SKIPOWNPROCESS);
+            // Hook foreground changes
+            RegisterHook(NativeConstants.EVENT_SYSTEM_FOREGROUND, NativeConstants.EVENT_SYSTEM_FOREGROUND);
+            // Hook move/size start/end
+            RegisterHook(NativeConstants.EVENT_SYSTEM_MOVESIZESTART, NativeConstants.EVENT_SYSTEM_MOVESIZESTART);
+            RegisterHook(NativeConstants.EVENT_SYSTEM_MOVESIZEEND, NativeConstants.EVENT_SYSTEM_MOVESIZEEND);
+            // Hook location changes for current target
+            RegisterHook(NativeConstants.EVENT_OBJECT_LOCATIONCHANGE, NativeConstants.EVENT_OBJECT_LOCATIONCHANGE);
 
-            if (_foregroundHook == IntPtr.Zero)
+            if (_hooks.Count == 0)
             {
-                _logger.LogWarning("Failed to set WinEventHook for foreground changes, using timer fallback only");
+                _logger.LogWarning("Failed to set any WinEventHooks, using timer fallback only");
             }
             else
             {
-                _logger.LogInformation("WinEventHook registered for foreground changes");
+                _logger.LogInformation("WinEventHooks registered: {Count} hooks", _hooks.Count);
             }
 
-            // Fallback timer to catch missed events
+            // Fallback timer - 500ms sanity check only
             _fallbackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _fallbackTimer.Tick += (_, _) => CheckForegroundWindow();
             _fallbackTimer.Start();
@@ -87,25 +86,159 @@ public sealed class ActiveWindowTracker : IActiveWindowTracker
         _fallbackTimer?.Stop();
         _fallbackTimer = null;
 
-        if (_foregroundHook != IntPtr.Zero)
+        foreach (var hook in _hooks)
         {
-            User32.UnhookWinEvent(_foregroundHook);
-            _foregroundHook = IntPtr.Zero;
+            if (hook != IntPtr.Zero)
+                User32.UnhookWinEvent(hook);
         }
+        _hooks.Clear();
     }
 
     public List<WindowInfo> GetVisibleWindowsForProcess(int processId)
     {
-        return _windowInfoProvider.GetVisibleWindowsForProcess(processId);
+        // Delegate to a simple EnumWindows for active-app mode
+        var windows = new List<WindowInfo>();
+        User32.EnumWindows((hWnd, _) =>
+        {
+            User32.GetWindowThreadProcessId(hWnd, out int pid);
+            if (pid != processId) return true;
+
+            var result = _targetSelector.Evaluate(hWnd);
+            if (result.Window != null)
+                windows.Add(result.Window);
+            return true;
+        }, IntPtr.Zero);
+        return windows;
+    }
+
+    private void RegisterHook(uint eventMin, uint eventMax)
+    {
+        try
+        {
+            IntPtr hook = User32.SetWinEventHook(
+                eventMin, eventMax,
+                IntPtr.Zero, _winEventDelegate!,
+                0, 0,
+                NativeConstants.WINEVENT_OUTOFCONTEXT | NativeConstants.WINEVENT_SKIPOWNPROCESS);
+
+            if (hook != IntPtr.Zero)
+                _hooks.Add(hook);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to register WinEventHook for events {Min}-{Max}", eventMin, eventMax);
+        }
     }
 
     private void OnWinEvent(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
-        if (eventType != NativeConstants.EVENT_SYSTEM_FOREGROUND) return;
-        if (hwnd == IntPtr.Zero) return;
+        try
+        {
+            switch (eventType)
+            {
+                case NativeConstants.EVENT_SYSTEM_FOREGROUND:
+                    if (hwnd != IntPtr.Zero)
+                        _dispatcher.BeginInvoke(() => ProcessForegroundChange(hwnd));
+                    break;
 
-        // Debounce rapid changes
-        _debouncer.Debounce(() => _dispatcher.BeginInvoke(() => ProcessForegroundChange(hwnd)));
+                case NativeConstants.EVENT_SYSTEM_MOVESIZESTART:
+                    if (!_isDragging && IsTargetOrRelated(hwnd))
+                    {
+                        _isDragging = true;
+                        _logger.LogDebug("Drag/resize started");
+                        _dispatcher.BeginInvoke(() => DragStarted?.Invoke(this, EventArgs.Empty));
+                    }
+                    break;
+
+                case NativeConstants.EVENT_SYSTEM_MOVESIZEEND:
+                    if (_isDragging)
+                    {
+                        _isDragging = false;
+                        _logger.LogDebug("Drag/resize ended");
+                        _dispatcher.BeginInvoke(() =>
+                        {
+                            DragEnded?.Invoke(this, EventArgs.Empty);
+                            // Re-evaluate after drag
+                            CheckForegroundWindow();
+                        });
+                    }
+                    break;
+
+                case NativeConstants.EVENT_OBJECT_LOCATIONCHANGE:
+                    // Only react to location changes of the current target window
+                    if (idObject == 0 && idChild == 0 && !_isDragging && IsTargetOrRelated(hwnd))
+                    {
+                        // Throttle updates
+                        var now = DateTime.UtcNow;
+                        if (now - _lastUpdateTime > UpdateThrottle)
+                        {
+                            _lastUpdateTime = now;
+                            _dispatcher.BeginInvoke(() => ProcessLocationChange(hwnd));
+                        }
+                    }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error in WinEvent callback");
+        }
+    }
+
+    private bool IsTargetOrRelated(IntPtr hwnd)
+    {
+        if (CurrentWindow == null) return false;
+        if (hwnd == CurrentWindow.Hwnd) return true;
+        // Check if hwnd is a child/owned by current target
+        IntPtr root = User32.GetAncestor(hwnd, NativeConstants.GA_ROOT);
+        return root == CurrentWindow.Hwnd;
+    }
+
+    private void ProcessForegroundChange(IntPtr hwnd)
+    {
+        try
+        {
+            var result = _targetSelector.GetTarget(hwnd);
+
+            switch (result.Decision)
+            {
+                case TargetDecision.Accepted:
+                case TargetDecision.FallbackToLastValid:
+                    if (result.Window != null)
+                    {
+                        CurrentWindow = result.Window;
+                        ForegroundChanged?.Invoke(this, result.Window);
+                    }
+                    break;
+
+                case TargetDecision.HideOverlay:
+                    CurrentWindow = null;
+                    ForegroundChanged?.Invoke(this, new WindowInfo { Hwnd = IntPtr.Zero });
+                    break;
+
+                case TargetDecision.Rejected:
+                    // Don't change current state on rejection
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error processing foreground change");
+        }
+    }
+
+    private void ProcessLocationChange(IntPtr hwnd)
+    {
+        // Re-evaluate current target if its bounds changed
+        if (CurrentWindow != null && hwnd == CurrentWindow.Hwnd)
+        {
+            var result = _targetSelector.Evaluate(hwnd);
+            if (result.Window != null)
+            {
+                CurrentWindow = result.Window;
+                ForegroundChanged?.Invoke(this, result.Window);
+            }
+        }
     }
 
     private void CheckForegroundWindow()
@@ -122,59 +255,10 @@ public sealed class ActiveWindowTracker : IActiveWindowTracker
         }
     }
 
-    private void ProcessForegroundChange(IntPtr hwnd)
-    {
-        try
-        {
-            if (ShouldIgnoreWindow(hwnd))
-            {
-                return;
-            }
-
-            var windowInfo = _windowInfoProvider.GetWindowInfo(hwnd);
-            if (windowInfo == null || windowInfo.IsOwnProcess)
-            {
-                return;
-            }
-
-            CurrentWindow = windowInfo;
-            ForegroundChanged?.Invoke(this, windowInfo);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Error processing foreground change");
-        }
-    }
-
-    private bool ShouldIgnoreWindow(IntPtr hwnd)
-    {
-        if (hwnd == IntPtr.Zero) return true;
-
-        string className = User32.GetClassName(hwnd);
-        if (IgnoredClasses.Contains(className)) return true;
-
-        // Skip own process
-        User32.GetWindowThreadProcessId(hwnd, out int processId);
-        if (processId == Environment.ProcessId) return true;
-
-        // Skip invisible
-        if (!User32.IsWindowVisible(hwnd)) return true;
-
-        // Skip minimized
-        if (User32.IsIconic(hwnd)) return true;
-
-        // Skip cloaked
-        if (DwmApi.IsCloaked(hwnd)) return true;
-
-        return false;
-    }
-
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-
         Stop();
-        _debouncer.Dispose();
     }
 }

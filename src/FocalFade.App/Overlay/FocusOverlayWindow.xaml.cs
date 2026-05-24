@@ -1,19 +1,21 @@
 using FocalFade.Models;
 using FocalFade.Native;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Shapes;
 
 namespace FocalFade.Overlay;
 
 public partial class FocusOverlayWindow : Window
 {
-    private readonly OverlayState _state = new();
     private IntPtr _hwnd;
     private bool _isSetup;
+    private MonitorInfo? _monitor;
+
+    // Cached state to avoid unnecessary redraws
+    private List<Rect>? _lastLocalRects;
+    private OverlayAppearance? _lastAppearance;
 
     public FocusOverlayWindow()
     {
@@ -36,7 +38,7 @@ public partial class FocusOverlayWindow : Window
         _hwnd = hwndSource.Handle;
 
         // Set extended window style: transparent, layered, no-activate, tool window, topmost
-        int exStyle = (int)User32.SafeGetWindowLongPtr(_hwnd, NativeConstants.GWL_EXSTYLE);
+        int exStyle = (int)User32.GetWindowExStyle(_hwnd);
         exStyle |= (int)(NativeConstants.WS_EX_TRANSPARENT
             | NativeConstants.WS_EX_LAYERED
             | NativeConstants.WS_EX_TOOLWINDOW
@@ -46,49 +48,70 @@ public partial class FocusOverlayWindow : Window
         // Set topmost
         User32.SetWindowPos(_hwnd, NativeConstants.HWND_TOPMOST, 0, 0, 0, 0,
             NativeConstants.SWP_NOMOVE | NativeConstants.SWP_NOSIZE | NativeConstants.SWP_NOACTIVATE);
+
+        // Position if monitor was already set
+        if (_monitor != null)
+            ApplyPosition();
     }
 
     public void PositionOnMonitor(MonitorInfo monitor)
     {
-        var bounds = monitor.DipBounds;
-        Left = bounds.X;
-        Top = bounds.Y;
-        Width = bounds.Width;
-        Height = bounds.Height;
+        _monitor = monitor;
 
+        // Set WPF dimensions in DIPs for the WPF layout system
+        Left = monitor.DipBounds.X;
+        Top = monitor.DipBounds.Y;
+        Width = monitor.DipBounds.Width;
+        Height = monitor.DipBounds.Height;
+
+        // Position with Win32 SetWindowPos using physical pixels
         if (_hwnd != IntPtr.Zero)
-        {
-            User32.SetWindowPos(_hwnd, NativeConstants.HWND_TOPMOST,
-                (int)monitor.PhysicalBounds.X, (int)monitor.PhysicalBounds.Y,
-                (int)monitor.PhysicalBounds.Width, (int)monitor.PhysicalBounds.Height,
-                NativeConstants.SWP_NOACTIVATE | NativeConstants.SWP_SHOWWINDOW);
-        }
+            ApplyPosition();
     }
 
-    public void UpdateOverlay(List<Rect> focusRects, OverlayAppearance appearance, MonitorInfo monitor)
+    private void ApplyPosition()
     {
-        _state.FocusRects = focusRects;
-        _state.Appearance = appearance;
-        _state.LastUpdate = DateTime.Now;
+        if (_monitor == null || _hwnd == IntPtr.Zero) return;
 
-        var monitorBounds = new Rect(0, 0, Width, Height);
+        var pb = _monitor.PhysicalBounds;
+        User32.SetWindowPos(_hwnd, NativeConstants.HWND_TOPMOST,
+            (int)pb.X, (int)pb.Y, (int)pb.Width, (int)pb.Height,
+            NativeConstants.SWP_NOACTIVATE | NativeConstants.SWP_SHOWWINDOW);
+    }
 
-        // Transform focus rects to local coordinates
-        var localRects = focusRects.Select(r => new Rect(
+    public void UpdateOverlay(List<Rect> focusRectsInDip, OverlayAppearance appearance, MonitorInfo monitor)
+    {
+        _monitor = monitor;
+
+        // Convert DIP focus rects to overlay-local DIP coordinates
+        // monitor.DipBounds is the monitor's position in DIP virtual screen space
+        // Local coords = focusRect - monitor.DipBounds origin
+        var localRects = focusRectsInDip.Select(r => new Rect(
             r.X - monitor.DipBounds.X,
             r.Y - monitor.DipBounds.Y,
             r.Width,
             r.Height)).ToList();
 
-        // Create dimming geometry
+        // Skip redraw if nothing changed
+        if (_lastLocalRects != null && _lastAppearance != null &&
+            AreRectsEqual(_lastLocalRects, localRects) && _lastAppearance.Equals(appearance))
+            return;
+
+        _lastLocalRects = localRects;
+        _lastAppearance = appearance;
+
+        // Overlay canvas size in DIPs
+        var overlayBounds = new Rect(0, 0, Width, Height);
+
+        // Create dimming geometry with EvenOdd fill rule
         var geometry = OverlayGeometryService.CreateDimmingGeometry(
-            monitorBounds, localRects, appearance.FocusMargin, appearance.CornerRadius);
+            overlayBounds, localRects, appearance.FocusMargin, appearance.CornerRadius);
 
         DimmingPath.Data = geometry;
         DimmingPath.Fill = new SolidColorBrush(appearance.DimColor);
         DimmingPath.Opacity = appearance.Opacity;
 
-        // Update border if enabled
+        // Update border
         if (appearance.ShowBorder && localRects.Count > 0)
         {
             BorderPath.Visibility = Visibility.Visible;
@@ -112,15 +135,28 @@ public partial class FocusOverlayWindow : Window
         }
     }
 
+    public void ShowImmediate()
+    {
+        if (!IsVisible)
+            Show();
+        Opacity = 1.0;
+    }
+
+    public void HideImmediate()
+    {
+        if (IsVisible)
+            Hide();
+    }
+
     public void ShowWithAnimation(int fadeDurationMs)
     {
         if (!IsVisible)
         {
             Show();
             if (fadeDurationMs > 0)
-            {
                 OverlayAnimationService.AnimateOpacity(this, 0, 1, fadeDurationMs);
-            }
+            else
+                Opacity = 1.0;
         }
     }
 
@@ -147,12 +183,24 @@ public partial class FocusOverlayWindow : Window
     {
         if (_hwnd == IntPtr.Zero) return;
 
-        int exStyle = (int)User32.SafeGetWindowLongPtr(_hwnd, NativeConstants.GWL_EXSTYLE);
+        int exStyle = (int)User32.GetWindowExStyle(_hwnd);
         if (clickThrough)
             exStyle |= (int)NativeConstants.WS_EX_TRANSPARENT;
         else
             exStyle &= ~(int)NativeConstants.WS_EX_TRANSPARENT;
 
         User32.SafeSetWindowLongPtr(_hwnd, NativeConstants.GWL_EXSTYLE, new IntPtr(exStyle));
+    }
+
+    private static bool AreRectsEqual(List<Rect> a, List<Rect> b)
+    {
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+        {
+            if (Math.Abs(a[i].X - b[i].X) > 0.5 || Math.Abs(a[i].Y - b[i].Y) > 0.5 ||
+                Math.Abs(a[i].Width - b[i].Width) > 0.5 || Math.Abs(a[i].Height - b[i].Height) > 0.5)
+                return false;
+        }
+        return true;
     }
 }

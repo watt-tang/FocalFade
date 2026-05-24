@@ -1,7 +1,9 @@
 using FocalFade.Core;
+using FocalFade.Tray;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.IO;
 using System.Windows;
 
 namespace FocalFade;
@@ -15,6 +17,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Ensure log directory exists
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FocalFade", "Logs");
+        Directory.CreateDirectory(logDir);
+
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices((_, services) =>
             {
@@ -27,7 +35,9 @@ public partial class App : Application
                 services.AddSingleton<Services.IAppRuleManager, AppRuleManager>();
                 services.AddSingleton<Services.IDiagnosticsService, DiagnosticsService>();
                 services.AddSingleton<WindowInfoProvider>();
-                services.AddSingleton<Tray.TrayService>();
+                services.AddSingleton<WindowTargetSelector>();
+                services.AddSingleton<TrayService>();
+                services.AddSingleton<TrayThemeService>();
                 services.AddSingleton<SingleInstanceGuard>();
                 services.AddSingleton<AppLifecycleService>();
             })
@@ -35,6 +45,7 @@ public partial class App : Application
             {
                 logging.ClearProviders();
                 logging.AddDebug();
+                logging.SetMinimumLevel(LogLevel.Information);
             })
             .Build();
 

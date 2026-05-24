@@ -2,6 +2,8 @@ using FocalFade.Models;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.Logging;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace FocalFade.Tray;
 
@@ -10,6 +12,7 @@ public sealed class TrayService : IDisposable
     private readonly ILogger<TrayService> _logger;
     private TaskbarIcon? _trayIcon;
     private bool _disposed;
+    private bool _isDarkTheme;
 
     public event EventHandler? ShowSettingsRequested;
     public event EventHandler? ExitRequested;
@@ -25,26 +28,49 @@ public sealed class TrayService : IDisposable
         {
             _trayIcon = new TaskbarIcon();
             _trayIcon.ToolTipText = "FocalFade: Off";
-
-            // Try to load icon from resources
-            try
-            {
-                var iconUri = new Uri("pack://application:,,,/Resources/focalfade.ico", UriKind.Absolute);
-                _trayIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(iconUri);
-            }
-            catch
-            {
-                // Fallback: use a simple generated icon
-                _logger.LogWarning("Could not load tray icon, using fallback");
-            }
-
             _trayIcon.TrayMouseDoubleClick += (_, _) => ShowSettingsRequested?.Invoke(this, EventArgs.Empty);
             _trayIcon.Visibility = Visibility.Visible;
+
+            // Try loading icon
+            ApplyIcon(false);
+
             _logger.LogInformation("Tray icon initialized");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize tray icon");
+        }
+    }
+
+    public void SetTheme(bool isDark)
+    {
+        _isDarkTheme = isDark;
+        ApplyIcon(isDark);
+    }
+
+    private void ApplyIcon(bool isDark)
+    {
+        if (_trayIcon == null) return;
+
+        try
+        {
+            // Try to load from resources first
+            var resourceName = isDark ? "focalfade_light.ico" : "focalfade.ico";
+            var uri = new Uri($"pack://application:,,,/Resources/{resourceName}", UriKind.Absolute);
+            _trayIcon.IconSource = new BitmapImage(uri);
+        }
+        catch
+        {
+            try
+            {
+                // Fallback to default icon
+                var uri = new Uri("pack://application:,,,/Resources/focalfade.ico", UriKind.Absolute);
+                _trayIcon.IconSource = new BitmapImage(uri);
+            }
+            catch
+            {
+                _logger.LogWarning("Could not load tray icon");
+            }
         }
     }
 

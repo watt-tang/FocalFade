@@ -64,12 +64,16 @@ public sealed class SettingsStore : ISettingsStore
                 return;
             }
 
-            // Schema migration placeholder
+            // Schema migration
             if (loaded.SchemaVersion < AppSettings.CurrentSchemaVersion)
             {
                 _logger.LogInformation("Migrating settings from schema {Old} to {New}",
                     loaded.SchemaVersion, AppSettings.CurrentSchemaVersion);
-                // Future migrations go here
+
+                // v1 -> v2: new fields get defaults from AppSettings record
+                // The deserialized object already has defaults for missing JSON fields
+                // Just bump the schema version
+                loaded = loaded with { SchemaVersion = AppSettings.CurrentSchemaVersion };
             }
 
             _settings = loaded;

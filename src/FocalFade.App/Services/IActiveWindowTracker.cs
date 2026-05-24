@@ -5,6 +5,8 @@ namespace FocalFade.Services;
 public interface IActiveWindowTracker : IDisposable
 {
     event EventHandler<WindowInfo>? ForegroundChanged;
+    event EventHandler? DragStarted;
+    event EventHandler? DragEnded;
     WindowInfo? CurrentWindow { get; }
     void Start();
     void Stop();

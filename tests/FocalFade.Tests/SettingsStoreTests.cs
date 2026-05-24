@@ -20,7 +20,7 @@ public class SettingsStoreTests
     {
         var settings = new AppSettings();
 
-        settings.SchemaVersion.Should().Be(1);
+        settings.SchemaVersion.Should().Be(2);
         settings.Enabled.Should().BeTrue();
         settings.StartEnabled.Should().BeTrue();
         settings.Opacity.Should().Be(0.45);

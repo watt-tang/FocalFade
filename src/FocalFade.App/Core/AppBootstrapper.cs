@@ -1,3 +1,5 @@
+using FocalFade.Models;
+using FocalFade.Overlay;
 using FocalFade.Services;
 using FocalFade.Settings;
 using FocalFade.Tray;
@@ -22,7 +24,9 @@ public sealed class AppBootstrapper : IDisposable
     private readonly IAppRuleManager _appRuleManager;
     private readonly TrayService _trayService;
     private readonly AppLifecycleService _lifecycleService;
+    private readonly TrayThemeService _trayThemeService;
     private bool _disposed;
+    private bool _isPausedForDrag;
 
     public AppBootstrapper(IHost host)
     {
@@ -38,30 +42,28 @@ public sealed class AppBootstrapper : IDisposable
         _appRuleManager = host.Services.GetRequiredService<IAppRuleManager>();
         _trayService = host.Services.GetRequiredService<TrayService>();
         _lifecycleService = host.Services.GetRequiredService<AppLifecycleService>();
+        _trayThemeService = host.Services.GetRequiredService<TrayThemeService>();
     }
 
     public void Start()
     {
         try
         {
-            // Single instance check
             if (!_singleInstance.TryAcquire())
             {
-                _logger.LogInformation("Another instance is already running, exiting");
                 MessageBox.Show("FocalFade is already running.", "FocalFade", MessageBoxButton.OK, MessageBoxImage.Information);
                 Application.Current.Shutdown();
                 return;
             }
 
-            // Load settings
             _settingsStore.Load();
             var settings = _settingsStore.Settings;
 
-            // Apply app rules
             _appRuleManager.SetRules(settings.AppRules);
 
-            // Initialize tray
+            // Initialize tray with theme support
             _trayService.Initialize();
+            _trayThemeService.Initialize();
             _trayService.ExitRequested += (_, _) => Shutdown();
             _trayService.ShowSettingsRequested += (_, _) => ShowSettingsWindow();
             UpdateTrayMenu();
@@ -70,21 +72,19 @@ public sealed class AppBootstrapper : IDisposable
             _overlayManager.RecreateOverlays();
             _overlayManager.UpdateAppearance(CreateAppearance(settings));
 
-            // Initialize active window tracker
+            // Wire up active window tracker
             _activeWindowTracker.ForegroundChanged += OnForegroundChanged;
+            _activeWindowTracker.DragStarted += OnDragStarted;
+            _activeWindowTracker.DragEnded += OnDragEnded;
             _activeWindowTracker.Start();
 
             // Register hotkeys
             _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
             _hotkeyManager.RegisterHotkeys(settings.Hotkeys);
 
-            // Apply initial state
             if (settings.Enabled)
-            {
                 _overlayManager.Show();
-            }
 
-            // Listen for settings changes
             _settingsStore.SettingsChanged += OnSettingsChanged;
 
             _logger.LogInformation("FocalFade started successfully");
@@ -98,36 +98,63 @@ public sealed class AppBootstrapper : IDisposable
         }
     }
 
-    private void OnForegroundChanged(object? sender, Models.WindowInfo window)
+    private void OnForegroundChanged(object? sender, WindowInfo window)
     {
         try
         {
             var settings = _settingsStore.Settings;
 
-            if (!settings.Enabled)
+            if (!settings.Enabled || _isPausedForDrag)
+            {
+                if (!settings.Enabled)
+                    _overlayManager.Hide();
+                return;
+            }
+
+            // Invalid/hidden target
+            if (window.Hwnd == IntPtr.Zero)
             {
                 _overlayManager.Hide();
                 return;
             }
 
             // Check app rules
-            var behavior = _appRuleManager.Evaluate(window.ProcessName);
-            if (behavior == Models.DimmingBehavior.Ignore)
+            var ruleResult = _appRuleManager.Evaluate(window.ProcessName);
+            if (ruleResult.Behavior == DimmingBehavior.Ignore)
             {
                 _overlayManager.Hide();
                 return;
             }
 
             // Check fullscreen
-            if (settings.PauseOnFullscreen && window.IsFullscreen)
+            if (settings.PauseOnFullscreen && window.IsFullscreen &&
+                settings.FullscreenBehavior == FullscreenBehavior.Pause)
             {
                 _overlayManager.Hide();
                 return;
             }
 
+            // Compute effective appearance (with per-app overrides)
+            var appearance = CreateAppearance(settings);
+            if (ruleResult.OpacityOverride.HasValue)
+                appearance = appearance with { Opacity = Math.Clamp(ruleResult.OpacityOverride.Value, 0.10, 0.90) };
+            if (ruleResult.DimColorOverride != null)
+            {
+                try
+                {
+                    var c = System.Windows.Media.ColorConverter.ConvertFromString(ruleResult.DimColorOverride) as System.Windows.Media.Color?;
+                    if (c.HasValue) appearance = appearance with { DimColor = c.Value };
+                }
+                catch { }
+            }
+            if (ruleResult.FocusMarginOverride.HasValue)
+                appearance = appearance with { FocusMargin = ruleResult.FocusMarginOverride.Value };
+            if (ruleResult.CornerRadiusOverride.HasValue)
+                appearance = appearance with { CornerRadius = ruleResult.CornerRadiusOverride.Value };
+
             // Compute focus rects
-            var focusRects = new List<System.Windows.Rect>();
-            if (settings.OverlayMode == Models.OverlayMode.ActiveApp)
+            var focusRects = new List<Rect>();
+            if (settings.OverlayMode == OverlayMode.ActiveApp)
             {
                 var windows = _activeWindowTracker.GetVisibleWindowsForProcess(window.ProcessId);
                 focusRects.AddRange(windows.Select(w => w.DipBounds));
@@ -137,8 +164,7 @@ public sealed class AppBootstrapper : IDisposable
                 focusRects.Add(window.DipBounds);
             }
 
-            // Update overlay
-            _overlayManager.UpdateFocusRects(focusRects, CreateAppearance(settings));
+            _overlayManager.UpdateFocusRects(focusRects, appearance);
             _overlayManager.Show();
         }
         catch (Exception ex)
@@ -147,40 +173,52 @@ public sealed class AppBootstrapper : IDisposable
         }
     }
 
+    private void OnDragStarted(object? sender, EventArgs e)
+    {
+        var settings = _settingsStore.Settings;
+        if (!settings.HideOverlayWhileDragging) return;
+
+        _isPausedForDrag = true;
+        _overlayManager.Hide();
+    }
+
+    private void OnDragEnded(object? sender, EventArgs e)
+    {
+        _isPausedForDrag = false;
+        // Re-evaluation will happen from the tracker's CheckForegroundWindow call
+    }
+
     private void OnHotkeyPressed(object? sender, int hotkeyId)
     {
         try
         {
-            var settings = _settingsStore.Settings;
-
             switch (hotkeyId)
             {
                 case Native.NativeConstants.HOTKEY_TOGGLE_ENABLED:
                     _settingsStore.Update(s => s with { Enabled = !s.Enabled });
                     break;
-
                 case Native.NativeConstants.HOTKEY_INCREASE_OPACITY:
                     _settingsStore.Update(s => s with { Opacity = Math.Min(0.90, s.Opacity + 0.05) });
                     break;
-
                 case Native.NativeConstants.HOTKEY_DECREASE_OPACITY:
                     _settingsStore.Update(s => s with { Opacity = Math.Max(0.10, s.Opacity - 0.05) });
                     break;
-
                 case Native.NativeConstants.HOTKEY_PRESENTATION_MODE:
                     _settingsStore.Update(s => s with { PresentationModeEnabled = !s.PresentationModeEnabled });
                     break;
-
                 case Native.NativeConstants.HOTKEY_TEMPORARY_PEEK:
                     _overlayManager.Hide();
-                    var timer = new System.Threading.Timer(_ =>
+                    new System.Threading.Timer(_ =>
                     {
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                        Application.Current.Dispatcher.BeginInvoke(() =>
                         {
                             if (_settingsStore.Settings.Enabled)
                                 _overlayManager.Show();
                         });
                     }, null, 10000, Timeout.Infinite);
+                    break;
+                case Native.NativeConstants.HOTKEY_OPEN_SETTINGS:
+                    Application.Current.Dispatcher.BeginInvoke(() => ShowSettingsWindow());
                     break;
             }
         }
@@ -190,15 +228,15 @@ public sealed class AppBootstrapper : IDisposable
         }
     }
 
-    private void OnSettingsChanged(object? sender, Models.AppSettings settings)
+    private void OnSettingsChanged(object? sender, AppSettings settings)
     {
         _appRuleManager.SetRules(settings.AppRules);
         _overlayManager.UpdateAppearance(CreateAppearance(settings));
+        _trayThemeService.ApplyTheme(settings.TrayIconTheme);
         UpdateTrayMenu();
 
         if (settings.Enabled)
         {
-            // Trigger a re-evaluation
             var currentWindow = _activeWindowTracker.CurrentWindow;
             if (currentWindow != null)
                 OnForegroundChanged(this, currentWindow);
@@ -241,7 +279,7 @@ public sealed class AppBootstrapper : IDisposable
         _settingsWindow.Show();
     }
 
-    private static Models.OverlayAppearance CreateAppearance(Models.AppSettings settings)
+    internal static OverlayAppearance CreateAppearance(AppSettings settings)
     {
         var color = System.Windows.Media.ColorConverter.ConvertFromString(settings.DimColor) as System.Windows.Media.Color?
             ?? System.Windows.Media.Colors.Black;
@@ -252,12 +290,9 @@ public sealed class AppBootstrapper : IDisposable
             borderColor = (System.Windows.Media.ColorConverter.ConvertFromString(settings.BorderColor) as System.Windows.Media.Color?)
                 ?? System.Windows.Media.Color.FromArgb(80, 255, 255, 255);
         }
-        catch
-        {
-            borderColor = System.Windows.Media.Color.FromArgb(80, 255, 255, 255);
-        }
+        catch { borderColor = System.Windows.Media.Color.FromArgb(80, 255, 255, 255); }
 
-        return new Models.OverlayAppearance
+        return new OverlayAppearance
         {
             Opacity = settings.Opacity,
             DimColor = color,
@@ -278,6 +313,7 @@ public sealed class AppBootstrapper : IDisposable
         _overlayManager.Hide();
         _hotkeyManager.UnregisterAll();
         _trayService.Dispose();
+        _trayThemeService.Dispose();
         _settingsStore.Save();
         Application.Current.Shutdown();
     }
