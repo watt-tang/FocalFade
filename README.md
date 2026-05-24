@@ -36,7 +36,7 @@ FocalFade helps you focus by gently fading everything except what you are workin
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshots/readme.png" alt="FocalFade Screenshot" width="700"/>
+  <img src="assets/screenshots/screenshot.png" alt="FocalFade Screenshot" width="700"/>
 </p>
 
 ## Install
