@@ -21,6 +21,7 @@ FocalFade helps you focus by gently fading everything except what you are workin
 - Customizable opacity, dim color with RGB sliders and presets, corner radius, and focus margin
 - Per-app opacity rules
 - Full hotkey customization UI (click-to-bind)
+- Quick Panel (Ctrl+Alt+Q) — floating dark control panel for instant adjustments
 - Presentation Mode for screen sharing and recording
 - Global hotkeys for quick control
 - Experimental blur effect behind dimmed areas
@@ -77,6 +78,7 @@ Right-click the FocalFade tray icon to access:
 ### Default Hotkeys
 | Hotkey | Action |
 |--------|--------|
+| `Ctrl+Alt+Q` | Quick Panel (floating control panel) |
 | `Ctrl+Alt+F` | Toggle enabled/disabled |
 | `Ctrl+Alt+Up` | Increase opacity |
 | `Ctrl+Alt+Down` | Decrease opacity |

@@ -70,6 +70,7 @@ public static class NativeConstants
     public const int HOTKEY_PRESENTATION_MODE = 4;
     public const int HOTKEY_TEMPORARY_PEEK = 5;
     public const int HOTKEY_OPEN_SETTINGS = 6;
+    public const int HOTKEY_QUICK_PANEL = 7;
 
     // Shell notify icon
     public const int NIM_ADD = 0x00000000;

@@ -10,5 +10,6 @@ public sealed record HotkeyAction(string Key, string DisplayName, string Default
         new("PresentationMode", "Toggle Presentation Mode", "Ctrl+Alt+P"),
         new("TemporaryPeek", "Peek (10 sec)", "Ctrl+Alt+Space"),
         new("OpenSettings", "Open settings", "Ctrl+Alt+S"),
+        new("QuickPanel", "Quick panel", "Ctrl+Alt+Q"),
     ];
 }

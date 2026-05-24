@@ -130,6 +130,7 @@ public sealed record AppSettings
         ["DecreaseOpacity"] = "Ctrl+Alt+Down",
         ["PresentationMode"] = "Ctrl+Alt+P",
         ["TemporaryPeek"] = "Ctrl+Alt+Space",
-        ["OpenSettings"] = "Ctrl+Alt+S"
+        ["OpenSettings"] = "Ctrl+Alt+S",
+        ["QuickPanel"] = "Ctrl+Alt+Q"
     };
 }

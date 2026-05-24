@@ -221,6 +221,9 @@ public sealed class AppBootstrapper : IDisposable
                 case Native.NativeConstants.HOTKEY_OPEN_SETTINGS:
                     Application.Current.Dispatcher.BeginInvoke(() => ShowSettingsWindow());
                     break;
+                case Native.NativeConstants.HOTKEY_QUICK_PANEL:
+                    Application.Current.Dispatcher.BeginInvoke(() => ToggleQuickPanel());
+                    break;
             }
         }
         catch (Exception ex)
@@ -279,6 +282,23 @@ public sealed class AppBootstrapper : IDisposable
         _settingsWindow = new SettingsWindow(_settingsStore, _startupManager, _overlayManager, _activeWindowTracker);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
+    }
+
+    private QuickPanelWindow? _quickPanel;
+
+    private void ToggleQuickPanel()
+    {
+        if (_quickPanel != null)
+        {
+            _quickPanel.Close();
+            _quickPanel = null;
+            return;
+        }
+
+        _quickPanel = new QuickPanelWindow(_settingsStore, _overlayManager);
+        _quickPanel.Closed += (_, _) => _quickPanel = null;
+        _quickPanel.Show();
+        _quickPanel.Focus();
     }
 
     internal static OverlayAppearance CreateAppearance(AppSettings settings)
