@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0-beta.1)'
+        required: true
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build Release
+      run: dotnet build -c Release --no-restore
+
+    - name: Test
+      run: dotnet test -c Release --no-build --verbosity normal
+
+    - name: Publish Self-Contained
+      run: >
+        dotnet publish src/FocalFade.App/FocalFade.App.csproj
+        -c Release
+        -r win-x64
+        --self-contained true
+        -p:PublishSingleFile=true
+        -p:IncludeNativeLibrariesForSelfExtract=true
+        -p:PublishReadyToRun=true
+        -o ./publish
+
+    - name: Create ZIP
+      run: |
+        Compress-Archive -Path ./publish/* -DestinationPath ./FocalFade-win-x64-portable.zip
+
+    - name: Generate SHA256
+      run: |
+        $hash = (Get-FileHash ./FocalFade-win-x64-portable.zip -Algorithm SHA256).Hash
+        Set-Content -Path ./FocalFade-win-x64-portable.zip.sha256 -Value $hash
+        Write-Host "SHA256: $hash"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FocalFade-win-x64-portable
+        path: |
+          ./FocalFade-win-x64-portable.zip
+          ./FocalFade-win-x64-portable.zip.sha256
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.inputs.version }}
+        name: FocalFade ${{ github.event.inputs.version }}
+        body: |
+          ## FocalFade ${{ github.event.inputs.version }}
+
+          Lightweight focus dimmer for Windows.
+
+          ### Downloads
+          - `FocalFade-win-x64-portable.zip` - Self-contained portable executable
+
+          ### SHA256
+          See `FocalFade-win-x64-portable.zip.sha256`
+        files: |
+          ./FocalFade-win-x64-portable.zip
+          ./FocalFade-win-x64-portable.zip.sha256
+        draft: true
+        prerelease: true
